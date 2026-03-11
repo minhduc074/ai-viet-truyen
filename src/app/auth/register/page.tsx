@@ -15,7 +15,6 @@ export default function RegisterPage() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [displayName, setDisplayName] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -29,43 +28,36 @@ export default function RegisterPage() {
     setLoading(true);
     setError("");
 
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: { display_name: displayName },
-      },
-    });
+    const { error: signUpError } = await supabase.auth.signUp({ email, password });
 
-    if (error) {
-      setError(error.message);
-      setLoading(false);
-    } else {
-      // Simple flow: sign up xong đăng nhập luôn.
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (signInError) {
-        const msg = signInError.message.toLowerCase();
-        if (
-          msg.includes("email") &&
-          (msg.includes("confirm") || msg.includes("verify"))
-        ) {
-          setError(
-            "Project Supabase của bạn đang bật xác thực email. Vào Supabase > Authentication > Providers > Email và tắt 'Confirm email' để đăng ký không cần xác nhận."
-          );
-        } else {
-          setError(signInError.message);
-        }
-        setLoading(false);
-        return;
+    if (signUpError) {
+      if (signUpError.message.toLowerCase().includes("rate limit")) {
+        setError("Quá nhiều yêu cầu. Vui lòng đợi vài phút rồi thử lại.");
+      } else {
+        setError(signUpError.message);
       }
-
-      router.push("/play/genre");
-      router.refresh();
+      setLoading(false);
+      return;
     }
+
+    // Auto login sau khi đăng ký
+    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+
+    if (signInError) {
+      setError(signInError.message);
+      setLoading(false);
+      return;
+    }
+
+    router.push("/play/genre");
+    router.refresh();
+  };
+
+  const handleGoogleLogin = async () => {
+    await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: `${window.location.origin}/auth/callback` },
+    });
   };
 
   return (
@@ -73,23 +65,10 @@ export default function RegisterPage() {
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl">Đăng ký</CardTitle>
-          <CardDescription>
-            Tạo tài khoản nhanh và vào chơi ngay
-          </CardDescription>
+          <CardDescription>Tạo tài khoản và bắt đầu chơi</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
           <form onSubmit={handleRegister} className="space-y-4">
-            <div>
-              <Label htmlFor="displayName">Tên hiển thị</Label>
-              <Input
-                id="displayName"
-                placeholder="Nhà văn sáng tạo"
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                maxLength={50}
-                className="mt-1.5"
-              />
-            </div>
             <div>
               <Label htmlFor="email">Email</Label>
               <Input
@@ -116,25 +95,27 @@ export default function RegisterPage() {
               />
             </div>
 
-            {error && (
-              <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
-                {error}
-              </div>
-            )}
+            {error && <p className="text-sm text-destructive">{error}</p>}
 
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? (
-                <span className="flex items-center gap-2">
-                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                  Đang đăng ký...
-                </span>
-              ) : (
-                "Đăng ký"
-              )}
+              {loading ? "Đang đăng ký..." : "Đăng ký"}
             </Button>
           </form>
 
-          <p className="mt-6 text-center text-sm text-muted-foreground">
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-card px-2 text-muted-foreground">Hoặc</span>
+            </div>
+          </div>
+
+          <Button variant="outline" className="w-full" onClick={handleGoogleLogin}>
+            Đăng ký với Google
+          </Button>
+
+          <p className="text-center text-sm text-muted-foreground">
             Đã có tài khoản?{" "}
             <Link href="/auth/login" className="font-medium text-foreground hover:underline">
               Đăng nhập

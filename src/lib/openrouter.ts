@@ -52,7 +52,7 @@ export async function generateStoryChapter(
       "X-Title": "AI Viet Truyen",
     },
     body: JSON.stringify({
-      model: "arcee-ai/trinity-large-preview:free",
+      model: "google/gemma-3-27b-it:free",
       messages,
       temperature: 0.8,
       max_tokens: 10000,
