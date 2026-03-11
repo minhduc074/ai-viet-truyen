@@ -6,7 +6,28 @@ import type { ChapterLength, StoryTone } from "@/types";
 
 const GUEST_CHAPTER_LIMIT = 5;
 
+type PgError = {
+  code?: string;
+  message?: string;
+  details?: string;
+  hint?: string;
+};
+
+function toPgError(err: unknown): PgError {
+  if (!err || typeof err !== "object") return {};
+  const e = err as Record<string, unknown>;
+  return {
+    code: typeof e.code === "string" ? e.code : undefined,
+    message: typeof e.message === "string" ? e.message : undefined,
+    details: typeof e.details === "string" ? e.details : undefined,
+    hint: typeof e.hint === "string" ? e.hint : undefined,
+  };
+}
+
 export async function POST(request: NextRequest) {
+  const requestId = crypto.randomUUID();
+  const logTag = `[api/story/generate:${requestId}]`;
+
   try {
     const body = await request.json();
     const { storyId, choiceMade } = body;
@@ -30,7 +51,25 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (storyError || !story) {
-      return NextResponse.json({ error: "Không tìm thấy truyện" }, { status: 404 });
+      const err = toPgError(storyError);
+      console.error(`${logTag} story_lookup_error`, {
+        storyId,
+        ...err,
+      });
+
+      const guidance =
+        err.code === "42501"
+          ? "RLS chặn truy cập story. Hãy chạy migration 002_guest_rls_patch.sql."
+          : err.code === "PGRST116"
+          ? "Không đọc được story (0 rows). Nếu là truyện guest, hãy chạy migration 002_guest_rls_patch.sql."
+          : err.code === "PGRST205"
+          ? "Thiếu bảng stories. Hãy chạy migration schema trong Supabase."
+          : "Không tìm thấy truyện hoặc không có quyền truy cập.";
+
+      return NextResponse.json(
+        { error: guidance, requestId, debug: err },
+        { status: 404 }
+      );
     }
 
     // Guest chapter limit check
@@ -158,9 +197,14 @@ export async function POST(request: NextRequest) {
       story: { ...story, chapter_count: nextChapterNumber },
     });
   } catch (err) {
-    console.error("Generate chapter error:", err);
+    const message = err instanceof Error ? err.message : "Unknown error";
+    console.error(`${logTag} unhandled_error`, err);
     return NextResponse.json(
-      { error: "Lỗi khi tạo chapter. Vui lòng thử lại." },
+      {
+        error: "Lỗi khi tạo chapter. Vui lòng thử lại.",
+        requestId,
+        debug: { message },
+      },
       { status: 500 }
     );
   }

@@ -20,6 +20,12 @@ function toPgError(err: unknown): PgError {
   };
 }
 
+function isMissingTableError(err: PgError, tableName: string): boolean {
+  if (err.code === "42P01") return true;
+  if (err.code === "PGRST205" && err.message?.includes(tableName)) return true;
+  return false;
+}
+
 export async function POST(request: NextRequest) {
   const requestId = crypto.randomUUID();
   const logTag = `[api/story/create:${requestId}]`;
@@ -67,7 +73,13 @@ export async function POST(request: NextRequest) {
 
     if (authError) {
       const err = toPgError(authError);
-      console.error(`${logTag} auth_getUser_error`, err);
+      if (err.message === "Auth session missing!") {
+        console.info(`${logTag} auth_getUser_info`, {
+          message: "Guest request without auth session",
+        });
+      } else {
+        console.error(`${logTag} auth_getUser_error`, err);
+      }
     }
 
     console.log(`${logTag} auth_state`, {
@@ -96,6 +108,16 @@ export async function POST(request: NextRequest) {
       if (existingSessionError) {
         const err = toPgError(existingSessionError);
         console.error(`${logTag} guest_session_lookup_error`, err);
+
+        if (isMissingTableError(err, "public.guest_sessions")) {
+          // Graceful fallback: keep feature working even before SQL migration is applied.
+          // Guest chapter limit tracking will be unavailable until migration is run.
+          console.warn(
+            `${logTag} guest_sessions_table_missing_lookup; falling back to cookie-only guest flow`
+          );
+          guestSessionId = null;
+          resolvedGuestToken = token;
+        }
       }
 
       if (existingSession) {
@@ -103,6 +125,9 @@ export async function POST(request: NextRequest) {
         console.log(`${logTag} guest_session_reused`, {
           guestSessionId,
         });
+      } else if (guestSessionId === null) {
+        // Missing table fallback path: skip session row creation.
+        console.log(`${logTag} guest_session_skipped_missing_table`);
       } else {
         const { data: newSession, error: sessionError } = await supabase
           .from("guest_sessions")
@@ -114,51 +139,53 @@ export async function POST(request: NextRequest) {
           const err = toPgError(sessionError);
           console.error(`${logTag} guest_session_create_error`, err);
 
-          if (err.code === "42P01") {
+          if (isMissingTableError(err, "public.guest_sessions")) {
+            console.warn(
+              `${logTag} guest_sessions_table_missing_create; continuing without guest_session_id`
+            );
+            guestSessionId = null;
+          } else {
             return NextResponse.json(
-              {
-                error: "Database chưa được setup. Hãy chạy file SQL migration trong Supabase trước.",
-                requestId,
-                debug: err,
-              },
+              { error: "Không thể tạo phiên khách", requestId, debug: err },
               { status: 500 }
             );
           }
-
-          return NextResponse.json(
-            { error: "Không thể tạo phiên khách", requestId, debug: err },
-            { status: 500 }
-          );
+        } else {
+          guestSessionId = newSession.id;
+          console.log(`${logTag} guest_session_created`, {
+            guestSessionId,
+          });
         }
-        guestSessionId = newSession.id;
-        console.log(`${logTag} guest_session_created`, {
-          guestSessionId,
-        });
       }
     }
 
     // Create story
-    const { data: story, error: storyError } = await supabase
+    // NOTE: We avoid `.select()` here because guest stories are not readable by current
+    // select policies (is_public=false, user_id=null), which can trigger 42501 on RETURNING.
+    const storyId = uuidv4();
+    const nowIso = new Date().toISOString();
+    const storyInsert = {
+      id: storyId,
+      user_id: user?.id || null,
+      guest_session_id: guestSessionId,
+      title,
+      genre,
+      premise,
+      character_name,
+      character_description,
+      tone,
+      chapter_length,
+    };
+
+    const { error: storyError } = await supabase
       .from("stories")
-      .insert({
-        user_id: user?.id || null,
-        guest_session_id: guestSessionId,
-        title,
-        genre,
-        premise,
-        character_name,
-        character_description,
-        tone,
-        chapter_length,
-      })
-      .select()
-      .single();
+      .insert(storyInsert);
 
     if (storyError) {
       const err = toPgError(storyError);
       console.error(`${logTag} story_create_error`, err);
 
-      if (err.code === "42P01") {
+      if (err.code === "42P01" || isMissingTableError(err, "public.stories")) {
         return NextResponse.json(
           {
             error: "Database chưa có bảng stories. Hãy chạy SQL migration trong Supabase.",
@@ -197,6 +224,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const story = {
+      ...storyInsert,
+      status: "active",
+      is_public: false,
+      chapter_count: 0,
+      likes_count: 0,
+      created_at: nowIso,
+      updated_at: nowIso,
+    };
+
     console.log(`${logTag} story_created`, {
       storyId: story.id,
       guestSessionId,
@@ -206,7 +243,7 @@ export async function POST(request: NextRequest) {
     const res = NextResponse.json({ story });
 
     // Set guest cookie if needed
-    if (!user && guestSessionId && resolvedGuestToken) {
+    if (!user && resolvedGuestToken) {
       res.cookies.set("guest_token", resolvedGuestToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",

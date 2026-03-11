@@ -59,6 +59,13 @@ export interface AIStoryResponse {
   summary: string;
 }
 
+export interface AIRandomSetupResponse {
+  title: string;
+  premise: string;
+  character_name: string;
+  character_description: string;
+}
+
 // ===== Story Setup Form =====
 export interface StorySetup {
   title: string;

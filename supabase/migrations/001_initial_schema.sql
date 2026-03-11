@@ -156,11 +156,17 @@ create policy "Anyone can view public stories" on public.stories
 create policy "Users can view their own stories" on public.stories
   for select using (auth.uid() = user_id);
 
+create policy "Guests can view guest stories" on public.stories
+  for select using (user_id is null);
+
 create policy "Users can create stories" on public.stories
   for insert with check (auth.uid() = user_id or user_id is null);
 
 create policy "Users can update their own stories" on public.stories
   for update using (auth.uid() = user_id);
+
+create policy "Guests can update guest stories" on public.stories
+  for update using (user_id is null);
 
 create policy "Users can delete their own stories" on public.stories
   for delete using (auth.uid() = user_id);
@@ -171,7 +177,7 @@ create policy "Anyone can view chapters of accessible stories" on public.chapter
     exists (
       select 1 from public.stories s
       where s.id = story_id
-      and (s.is_public = true or s.user_id = auth.uid())
+      and (s.is_public = true or s.user_id = auth.uid() or s.user_id is null)
     )
   );
 
@@ -191,7 +197,7 @@ create policy "Anyone can view choices of accessible chapters" on public.choices
       select 1 from public.chapters c
       join public.stories s on s.id = c.story_id
       where c.id = chapter_id
-      and (s.is_public = true or s.user_id = auth.uid())
+      and (s.is_public = true or s.user_id = auth.uid() or s.user_id is null)
     )
   );
 

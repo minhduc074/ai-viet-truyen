@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -18,7 +18,6 @@ export default function RegisterPage() {
   const [displayName, setDisplayName] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState(false);
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,30 +41,32 @@ export default function RegisterPage() {
       setError(error.message);
       setLoading(false);
     } else {
-      setSuccess(true);
-      setLoading(false);
+      // Simple flow: sign up xong đăng nhập luôn.
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (signInError) {
+        const msg = signInError.message.toLowerCase();
+        if (
+          msg.includes("email") &&
+          (msg.includes("confirm") || msg.includes("verify"))
+        ) {
+          setError(
+            "Project Supabase của bạn đang bật xác thực email. Vào Supabase > Authentication > Providers > Email và tắt 'Confirm email' để đăng ký không cần xác nhận."
+          );
+        } else {
+          setError(signInError.message);
+        }
+        setLoading(false);
+        return;
+      }
+
+      router.push("/play/genre");
+      router.refresh();
     }
   };
-
-  if (success) {
-    return (
-      <div className="flex min-h-[60vh] items-center justify-center px-4 py-12">
-        <Card className="w-full max-w-md">
-          <CardContent className="pt-8 text-center">
-            <div className="mb-4 text-5xl">✉️</div>
-            <h2 className="mb-2 text-xl font-bold">Kiểm tra email của bạn</h2>
-            <p className="mb-6 text-muted-foreground">
-              Chúng tôi đã gửi link xác nhận đến <strong>{email}</strong>. Nhấn vào link
-              trong email để hoàn tất đăng ký.
-            </p>
-            <Link href="/auth/login" className={buttonVariants({ variant: "outline" })}>
-              ← Quay lại đăng nhập
-            </Link>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
 
   return (
     <div className="flex min-h-[60vh] items-center justify-center px-4 py-12">
@@ -73,7 +74,7 @@ export default function RegisterPage() {
         <CardHeader className="text-center">
           <CardTitle className="text-2xl">Đăng ký</CardTitle>
           <CardDescription>
-            Tạo tài khoản để lưu truyện và chơi không giới hạn
+            Tạo tài khoản nhanh và vào chơi ngay
           </CardDescription>
         </CardHeader>
         <CardContent>

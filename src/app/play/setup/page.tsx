@@ -44,6 +44,7 @@ function SetupForm() {
     chapter_length: "medium" as ChapterLength,
   });
   const [loading, setLoading] = useState(false);
+  const [randomLoading, setRandomLoading] = useState(false);
   const [error, setError] = useState("");
 
   const genreName = genreId === "custom" ? form.customGenre : genre?.name || genreId;
@@ -88,6 +89,41 @@ function SetupForm() {
     }
   };
 
+  const handleRandomSetup = async () => {
+    if (genreId === "custom" && !form.customGenre.trim()) {
+      setError("Nhập thể loại tùy chỉnh trước khi random bằng AI");
+      return;
+    }
+
+    setRandomLoading(true);
+    setError("");
+    try {
+      const genreForRandom = genreId === "custom" ? form.customGenre.trim() : genreName;
+      const res = await fetch("/api/story/random-setup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ genre: genreForRandom }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Random setup thất bại");
+      }
+
+      setForm((prev) => ({
+        ...prev,
+        title: data.title || prev.title,
+        premise: data.premise || prev.premise,
+        character_name: data.character_name || prev.character_name,
+        character_description: data.character_description || prev.character_description,
+      }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Không thể random thiết lập truyện");
+    } finally {
+      setRandomLoading(false);
+    }
+  };
+
   return (
     <div className="mx-auto max-w-2xl px-4 py-12">
       <div className="mb-8 text-center">
@@ -99,6 +135,24 @@ function SetupForm() {
         </div>
         <h1 className="mb-2 text-3xl font-bold">Thiết lập câu chuyện</h1>
         <p className="text-muted-foreground">Tạo nên thế giới và nhân vật của riêng bạn</p>
+        <div className="mt-4 flex justify-center">
+          <Button
+            type="button"
+            variant="outline"
+            className="gap-2"
+            onClick={handleRandomSetup}
+            disabled={randomLoading}
+          >
+            {randomLoading ? (
+              <>
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                AI đang random...
+              </>
+            ) : (
+              <>🎲 AI random thiết lập</>
+            )}
+          </Button>
+        </div>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
