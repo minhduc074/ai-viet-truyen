@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateRandomSetup } from "@/lib/openrouter";
+import { DEFAULT_MODEL } from "@/lib/models";
 
 export async function POST(request: NextRequest) {
   const requestId = crypto.randomUUID();
@@ -8,6 +9,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const genre = typeof body?.genre === "string" ? body.genre.trim() : "Phiêu lưu";
+    const model = typeof body?.model === "string" ? body.model : DEFAULT_MODEL;
 
     if (!genre) {
       return NextResponse.json(
@@ -16,7 +18,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const data = await generateRandomSetup(genre);
+    const data = await generateRandomSetup(genre, model);
     return NextResponse.json({ ...data, requestId });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";

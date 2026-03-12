@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { getGenreById } from "@/lib/genres";
+import { FREE_MODELS, DEFAULT_MODEL, type AIModel } from "@/lib/models";
 import { useGameStore } from "@/stores/gameStore";
 import type { StoryTone, ChapterLength } from "@/types";
 
@@ -42,6 +43,7 @@ function SetupForm() {
     character_description: "",
     tone: "balanced" as StoryTone,
     chapter_length: "medium" as ChapterLength,
+    ai_model: DEFAULT_MODEL,
   });
   const [loading, setLoading] = useState(false);
   const [randomLoading, setRandomLoading] = useState(false);
@@ -71,6 +73,7 @@ function SetupForm() {
       character_description: form.character_description.trim(),
       tone: form.tone,
       chapter_length: form.chapter_length,
+      ai_model: form.ai_model,
     };
 
     // Get guest token from cookie if exists
@@ -102,7 +105,7 @@ function SetupForm() {
       const res = await fetch("/api/story/random-setup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ genre: genreForRandom }),
+        body: JSON.stringify({ genre: genreForRandom, model: form.ai_model }),
       });
 
       const data = await res.json();
@@ -292,6 +295,34 @@ function SetupForm() {
                   </button>
                 ))}
               </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">🤖 Chọn AI Model</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              <Label htmlFor="ai_model" className="text-sm text-muted-foreground">
+                Model được sử dụng để viết truyện (tất cả đều miễn phí)
+              </Label>
+              <select
+                id="ai_model"
+                value={form.ai_model}
+                onChange={(e) => setForm({ ...form, ai_model: e.target.value })}
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
+              >
+                {FREE_MODELS.map((model) => (
+                  <option key={model.id} value={model.id}>
+                    {model.provider}: {model.name} ({Math.round(model.contextLength / 1000)}K context)
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-muted-foreground">
+                Model lớn hơn thường viết tốt hơn nhưng có thể chậm hơn khi bị rate limit.
+              </p>
             </div>
           </CardContent>
         </Card>

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { generateStoryChapter } from "@/lib/openrouter";
+import { DEFAULT_MODEL } from "@/lib/models";
 import { buildSystemPrompt, buildFirstChapterPrompt, buildNextChapterPrompt } from "@/lib/prompts";
 import type { ChapterLength, StoryTone } from "@/types";
 
@@ -114,20 +115,20 @@ export async function POST(request: NextRequest) {
         premise: story.premise || "Một câu chuyện mới bắt đầu",
       });
     } else {
-      // Get summaries of recent chapters (last 10)
-      const recentSummaries = chapters
-        .slice(-10)
+      // Get all chapter summaries for full context
+      const allSummaries = chapters
         .map((ch) => ch.summary || `Chapter ${ch.chapter_number}`);
 
       userPrompt = buildNextChapterPrompt({
         chapterNumber: nextChapterNumber,
         choiceMade: choiceMade || "Tiếp tục",
-        previousSummaries: recentSummaries,
+        previousSummaries: allSummaries,
       });
     }
 
-    // Call AI
-    const aiResponse = await generateStoryChapter(systemPrompt, userPrompt);
+    // Call AI with story's selected model
+    const aiModel = story.ai_model || DEFAULT_MODEL;
+    const aiResponse = await generateStoryChapter(systemPrompt, userPrompt, [], aiModel);
 
     // If there was a choice made, mark it as selected in the previous chapter
     if (choiceMade && chapters.length > 0) {
@@ -175,13 +176,20 @@ export async function POST(request: NextRequest) {
       console.error("Choices save error:", choicesError);
     }
 
-    // Update story chapter count
+    // Update story chapter count and status
+    const storyUpdate: Record<string, unknown> = {
+      chapter_count: nextChapterNumber,
+      updated_at: new Date().toISOString(),
+    };
+
+    // If character died or reached max power, mark story as completed
+    if (aiResponse.is_dead || aiResponse.is_ending) {
+      storyUpdate.status = "completed";
+    }
+
     await supabase
       .from("stories")
-      .update({
-        chapter_count: nextChapterNumber,
-        updated_at: new Date().toISOString(),
-      })
+      .update(storyUpdate)
       .eq("id", storyId);
 
     // Update guest session chapter count
@@ -194,7 +202,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       chapter: newChapter,
       choices: savedChoices || [],
-      story: { ...story, chapter_count: nextChapterNumber },
+      story: { 
+        ...story, 
+        chapter_count: nextChapterNumber,
+        status: (aiResponse.is_dead || aiResponse.is_ending) ? "completed" : story.status,
+      },
+      is_dead: aiResponse.is_dead || false,
+      is_ending: aiResponse.is_ending || false,
+      power_level: aiResponse.power_level,
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";

@@ -23,6 +23,7 @@ export interface Story {
   character_description: string | null;
   tone: StoryTone;
   chapter_length: ChapterLength;
+  ai_model: string | null;
   status: StoryStatus;
   is_public: boolean;
   chapter_count: number;
@@ -57,6 +58,9 @@ export interface AIStoryResponse {
   content: string;
   choices: string[];
   summary: string;
+  is_dead?: boolean;
+  is_ending?: boolean;
+  power_level?: string;
 }
 
 export interface AIRandomSetupResponse {
@@ -75,6 +79,7 @@ export interface StorySetup {
   character_description: string;
   tone: StoryTone;
   chapter_length: ChapterLength;
+  ai_model: string;
 }
 
 // ===== Guest Session =====

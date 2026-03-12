@@ -41,6 +41,7 @@ export async function POST(request: NextRequest) {
       character_description,
       tone = "balanced",
       chapter_length = "medium",
+      ai_model,
       guestToken,
     } = body;
 
@@ -175,6 +176,7 @@ export async function POST(request: NextRequest) {
       character_description,
       tone,
       chapter_length,
+      ai_model: ai_model || null,
     };
 
     const { error: storyError } = await supabase
