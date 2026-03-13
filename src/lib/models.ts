@@ -9,6 +9,14 @@ export interface AIModel {
 
 export const FREE_MODELS: AIModel[] = [
   {
+    id: "openrouter/free",
+    name: "random",
+    provider: "OpenRouter",
+    contextLength: 8192,
+    weeklyTokens: "38.7M",
+    released: "Jul 9, 2025",
+  },
+  {
     id: "arcee-ai/trinity-large-preview:free",
     name: "Trinity Large Preview",
     provider: "Arcee AI",
