@@ -22,9 +22,9 @@ const TONES: { value: StoryTone; label: string; icon: string }[] = [
 ];
 
 const LENGTHS: { value: ChapterLength; label: string; desc: string }[] = [
-  { value: "short", label: "Ngắn", desc: "~300 từ" },
-  { value: "medium", label: "Trung bình", desc: "~600 từ" },
-  { value: "long", label: "Dài", desc: "~1000 từ" },
+  { value: "short", label: "Ngắn", desc: "~100 từ" },
+  { value: "medium", label: "Trung bình", desc: "~200 từ" },
+  { value: "long", label: "Dài", desc: "~300 từ" },
 ];
 
 function SetupForm() {

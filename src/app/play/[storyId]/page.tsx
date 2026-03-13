@@ -15,7 +15,15 @@ import {
 } from "@/components/ui/dialog";
 import Link from "next/link";
 
-function TypewriterText({ text, speed = 15 }: { text: string; speed?: number }) {
+function TypewriterText({
+  text,
+  speed = 15,
+  highlightText = "",
+}: {
+  text: string;
+  speed?: number;
+  highlightText?: string;
+}) {
   const [displayed, setDisplayed] = useState("");
   const [done, setDone] = useState(false);
   const indexRef = useRef(0);
@@ -43,13 +51,36 @@ function TypewriterText({ text, speed = 15 }: { text: string; speed?: number }) 
     setDone(true);
   };
 
+  const renderHighlightedText = (content: string, highlight: string) => {
+    const cleanHighlight = highlight.trim();
+    if (!cleanHighlight) return content;
+
+    const source = content.toLocaleLowerCase();
+    const target = cleanHighlight.toLocaleLowerCase();
+    const index = source.indexOf(target);
+
+    if (index < 0) return content;
+
+    const start = content.slice(0, index);
+    const match = content.slice(index, index + cleanHighlight.length);
+    const end = content.slice(index + cleanHighlight.length);
+
+    return (
+      <>
+        {start}
+        <mark className="rounded bg-yellow-300/40 px-1 text-foreground">{match}</mark>
+        {end}
+      </>
+    );
+  };
+
   return (
     <div className="relative">
       <div
         className="prose prose-invert max-w-none whitespace-pre-wrap text-base leading-relaxed md:text-lg md:leading-8"
         onClick={!done ? handleSkip : undefined}
       >
-        {displayed}
+        {renderHighlightedText(displayed, highlightText)}
         {!done && <span className="animate-pulse text-purple-400">▎</span>}
       </div>
       {!done && (
@@ -82,7 +113,13 @@ export default function StoryPlayPage() {
 
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [selectedChoice, setSelectedChoice] = useState<string | null>(null);
+  const [selectedReadingText, setSelectedReadingText] = useState("");
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [speechError, setSpeechError] = useState<string | null>(null);
+  const [speechRate, setSpeechRate] = useState(1);
+  const [activeHighlightText, setActiveHighlightText] = useState("");
   const contentRef = useRef<HTMLDivElement>(null);
+  const chapterTextRef = useRef<HTMLDivElement>(null);
 
   // Load story on mount
   useEffect(() => {
@@ -117,6 +154,106 @@ export default function StoryPlayPage() {
       setShowAuthModal(true);
     }
   }, [error]);
+
+  // Stop speech and clear selection when chapter changes
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.speechSynthesis.cancel();
+    setIsSpeaking(false);
+    setSelectedReadingText("");
+    setActiveHighlightText("");
+    setSpeechError(null);
+  }, [currentChapter?.id]);
+
+  useEffect(() => {
+    return () => {
+      if (typeof window !== "undefined") {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, []);
+
+  // Keep UI in sync when speech ends naturally
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const onSelectionChange = () => {
+      const selection = window.getSelection();
+      const selectedText = selection?.toString().trim() || "";
+      const anchorNode = selection?.anchorNode || null;
+      const isInsideChapter =
+        !!anchorNode && !!chapterTextRef.current?.contains(anchorNode);
+
+      if (isInsideChapter && selectedText.length > 0) {
+        setSelectedReadingText(selectedText);
+      } else {
+        setSelectedReadingText("");
+      }
+    };
+
+    document.addEventListener("selectionchange", onSelectionChange);
+    return () => {
+      document.removeEventListener("selectionchange", onSelectionChange);
+    };
+  }, []);
+
+  const speakText = (textToRead: string, highlightText: string) => {
+    if (typeof window === "undefined") return;
+
+    if (!window.speechSynthesis) {
+      setSpeechError("Trình duyệt của bạn chưa hỗ trợ đọc văn bản.");
+      return;
+    }
+
+    setSpeechError(null);
+    window.speechSynthesis.cancel();
+
+    const utterance = new SpeechSynthesisUtterance(textToRead);
+    utterance.lang = "vi-VN";
+    utterance.rate = speechRate;
+    utterance.pitch = 1;
+
+    utterance.onend = () => {
+      setIsSpeaking(false);
+      setActiveHighlightText("");
+    };
+    utterance.onerror = () => {
+      setIsSpeaking(false);
+      setActiveHighlightText("");
+      setSpeechError("Không thể phát giọng đọc. Vui lòng thử lại.");
+    };
+
+    setActiveHighlightText(highlightText);
+    setIsSpeaking(true);
+    window.speechSynthesis.speak(utterance);
+  };
+
+  const handleSpeakSelected = () => {
+    const textToRead = selectedReadingText.trim();
+    if (!textToRead) {
+      setSpeechError("Hãy bôi đen đoạn bạn muốn nghe trong nội dung chapter.");
+      return;
+    }
+
+    speakText(textToRead, textToRead);
+  };
+
+  const handleSpeakChapter = () => {
+    const textToRead = currentChapter?.content?.trim() || "";
+    if (!textToRead) {
+      setSpeechError("Chapter hiện tại chưa có nội dung để đọc.");
+      return;
+    }
+
+    speakText(textToRead, textToRead);
+  };
+
+  const handleStopSpeaking = () => {
+    if (typeof window === "undefined") return;
+    window.speechSynthesis.cancel();
+    setIsSpeaking(false);
+    setActiveHighlightText("");
+  };
 
   if (!story && !error) {
     return (
@@ -216,7 +353,80 @@ export default function StoryPlayPage() {
               {currentChapter.chapter_title}
             </h2>
           )}
-          <TypewriterText text={currentChapter.content} />
+
+          <div className="mb-4 rounded-lg border border-border/60 bg-card/40 p-3">
+            <p className="mb-2 text-xs text-muted-foreground">
+              Bôi đen đoạn văn trong chapter rồi bấm đọc.
+            </p>
+            <div className="mb-2 flex flex-wrap items-center gap-2">
+              <span className="text-xs text-muted-foreground">Tốc độ:</span>
+              <Button
+                type="button"
+                size="sm"
+                variant={speechRate === 0.85 ? "default" : "outline"}
+                className="h-7 px-2 text-xs"
+                onClick={() => setSpeechRate(0.85)}
+              >
+                Chậm
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={speechRate === 1 ? "default" : "outline"}
+                className="h-7 px-2 text-xs"
+                onClick={() => setSpeechRate(1)}
+              >
+                Vừa
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={speechRate === 1.15 ? "default" : "outline"}
+                className="h-7 px-2 text-xs"
+                onClick={() => setSpeechRate(1.15)}
+              >
+                Nhanh
+              </Button>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                size="sm"
+                onClick={handleSpeakSelected}
+                disabled={isGenerating || !selectedReadingText}
+              >
+                🔊 Đọc đoạn đã chọn
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                onClick={handleSpeakChapter}
+                disabled={isGenerating || !currentChapter?.content}
+              >
+                📖 Đọc toàn chapter
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={handleStopSpeaking}
+                disabled={!isSpeaking}
+              >
+                ⏹ Dừng đọc
+              </Button>
+              {selectedReadingText && (
+                <span className="text-xs text-muted-foreground">
+                  Đã chọn {selectedReadingText.length} ký tự
+                </span>
+              )}
+            </div>
+            {speechError && <p className="mt-2 text-xs text-red-400">{speechError}</p>}
+          </div>
+
+          <div ref={chapterTextRef}>
+            <TypewriterText text={currentChapter.content} highlightText={activeHighlightText} />
+          </div>
         </div>
       )}
 

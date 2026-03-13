@@ -9,9 +9,9 @@ const TONE_MAP: Record<StoryTone, string> = {
 };
 
 const LENGTH_MAP: Record<ChapterLength, string> = {
-  short: "khoảng 300 từ",
-  medium: "khoảng 600 từ",
-  long: "khoảng 1000 từ",
+  short: "khoảng 100 từ",
+  medium: "khoảng 200 từ",
+  long: "khoảng 300 từ",
 };
 
 export function buildSystemPrompt(params: {

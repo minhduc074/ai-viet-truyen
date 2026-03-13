@@ -202,7 +202,7 @@ export const FREE_MODELS: AIModel[] = [
   },
 ];
 
-export const DEFAULT_MODEL = "nvidia/nemotron-3-nano-30b-a3b:free";
+export const DEFAULT_MODEL = "openrouter/free";
 
 export function getModelById(id: string): AIModel | undefined {
   return FREE_MODELS.find((m) => m.id === id);
