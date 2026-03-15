@@ -104,8 +104,16 @@ export async function POST(request: NextRequest) {
       genre: story.genre,
       tone: (story.tone || "balanced") as StoryTone,
       chapterLength: (story.chapter_length || "medium") as ChapterLength,
+      worldSetting: story.world_setting || story.premise || "Một thế giới rộng lớn đang chờ được khám phá",
+      cultivationSystem: story.cultivation_system || "Khởi đầu ở tầng thấp nhất và tiến lên từng bước hợp lý",
+      endingGoal: story.ending_goal || "Hoàn thành mục tiêu lớn đã được gieo từ đầu truyện",
       characterName: story.character_name || "Nhân vật chính",
       characterDescription: story.character_description || "Một người bình thường",
+      companionName: story.companion_name || "",
+      companionRole: story.companion_role || "",
+      companionDescription: story.companion_description || "",
+      companionGoal: story.companion_goal || "",
+      companionArc: story.companion_arc || "",
     });
 
     let userPrompt: string;
@@ -113,6 +121,10 @@ export async function POST(request: NextRequest) {
       userPrompt = buildFirstChapterPrompt({
         title: story.title,
         premise: story.premise || "Một câu chuyện mới bắt đầu",
+        worldSetting: story.world_setting || story.premise || "Một thế giới rộng lớn đang chờ được khám phá",
+        cultivationSystem: story.cultivation_system || "Khởi đầu ở tầng thấp nhất và tiến lên từng bước hợp lý",
+        endingGoal: story.ending_goal || "Hoàn thành mục tiêu lớn đã được gieo từ đầu truyện",
+        companionName: story.companion_name || "Người đồng hành bí ẩn",
       });
     } else {
       // Get all chapter summaries for full context
@@ -123,6 +135,16 @@ export async function POST(request: NextRequest) {
         chapterNumber: nextChapterNumber,
         choiceMade: choiceMade || "Tiếp tục",
         previousSummaries: allSummaries,
+        worldSetting: story.world_setting || story.premise || "Một thế giới rộng lớn đang chờ được khám phá",
+        cultivationSystem: story.cultivation_system || "Khởi đầu ở tầng thấp nhất và tiến lên từng bước hợp lý",
+        endingGoal: story.ending_goal || "Hoàn thành mục tiêu lớn đã được gieo từ đầu truyện",
+        companionName: story.companion_name || "",
+        companionRole: story.companion_role || "",
+        companionDescription: story.companion_description || "",
+        companionGoal: story.companion_goal || "",
+        companionArc: story.companion_arc || "",
+        currentPowerLevel:
+          story.current_power_level || "Tầng khởi điểm thấp nhất của hệ thống đã xác lập",
       });
     }
 
@@ -180,6 +202,7 @@ export async function POST(request: NextRequest) {
     const storyUpdate: Record<string, unknown> = {
       chapter_count: nextChapterNumber,
       updated_at: new Date().toISOString(),
+      current_power_level: aiResponse.power_level || story.current_power_level || null,
     };
 
     // If character died or reached max power, mark story as completed

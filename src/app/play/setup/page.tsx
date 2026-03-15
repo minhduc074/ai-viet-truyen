@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { getGenreById } from "@/lib/genres";
-import { FREE_MODELS, DEFAULT_MODEL, type AIModel } from "@/lib/models";
+import { FREE_MODELS, DEFAULT_MODEL } from "@/lib/models";
 import { useGameStore } from "@/stores/gameStore";
 import type { StoryTone, ChapterLength } from "@/types";
 
@@ -33,14 +33,22 @@ function SetupForm() {
   const genreId = searchParams.get("genre") || "";
   const genre = getGenreById(genreId);
 
-  const { createStory, setSetup, generateChapter } = useGameStore();
+  const { createStory, setSetup } = useGameStore();
 
   const [form, setForm] = useState({
     title: "",
     customGenre: "",
     premise: "",
+    world_setting: "",
+    cultivation_system: "",
+    ending_goal: "",
     character_name: "",
     character_description: "",
+    companion_name: "",
+    companion_role: "",
+    companion_description: "",
+    companion_goal: "",
+    companion_arc: "",
     tone: "balanced" as StoryTone,
     chapter_length: "medium" as ChapterLength,
     ai_model: DEFAULT_MODEL,
@@ -53,8 +61,16 @@ function SetupForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.title.trim() || !form.premise.trim() || !form.character_name.trim()) {
-      setError("Vui lòng điền đầy đủ thông tin bắt buộc");
+    if (
+      !form.title.trim() ||
+      !form.premise.trim() ||
+      !form.world_setting.trim() ||
+      !form.cultivation_system.trim() ||
+      !form.ending_goal.trim() ||
+      !form.character_name.trim() ||
+      !form.companion_name.trim()
+    ) {
+      setError("Vui lòng điền đủ thông tin cốt lõi: truyện, thế giới, cảnh giới, kết thúc, main và đồng hành");
       return;
     }
     if (genreId === "custom" && !form.customGenre.trim()) {
@@ -69,8 +85,16 @@ function SetupForm() {
       title: form.title.trim(),
       genre: genreName,
       premise: form.premise.trim(),
+      world_setting: form.world_setting.trim(),
+      cultivation_system: form.cultivation_system.trim(),
+      ending_goal: form.ending_goal.trim(),
       character_name: form.character_name.trim(),
       character_description: form.character_description.trim(),
+      companion_name: form.companion_name.trim(),
+      companion_role: form.companion_role.trim(),
+      companion_description: form.companion_description.trim(),
+      companion_goal: form.companion_goal.trim(),
+      companion_arc: form.companion_arc.trim(),
       tone: form.tone,
       chapter_length: form.chapter_length,
       ai_model: form.ai_model,
@@ -117,8 +141,17 @@ function SetupForm() {
         ...prev,
         title: data.title || prev.title,
         premise: data.premise || prev.premise,
+        world_setting: data.world_setting || prev.world_setting,
+        cultivation_system: data.cultivation_system || prev.cultivation_system,
+        ending_goal: data.ending_goal || prev.ending_goal,
         character_name: data.character_name || prev.character_name,
         character_description: data.character_description || prev.character_description,
+        companion_name: data.companion_name || prev.companion_name,
+        companion_role: data.companion_role || prev.companion_role,
+        companion_description:
+          data.companion_description || prev.companion_description,
+        companion_goal: data.companion_goal || prev.companion_goal,
+        companion_arc: data.companion_arc || prev.companion_arc,
       }));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Không thể random thiết lập truyện");
@@ -215,6 +248,67 @@ function SetupForm() {
 
         <Card>
           <CardHeader>
+            <CardTitle className="text-base">🌍 Kinh thánh thế giới</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <Label htmlFor="world_setting">
+                Bối cảnh thế giới <span className="text-destructive">*</span>
+              </Label>
+              <Textarea
+                id="world_setting"
+                placeholder="Miêu tả địa lý, lịch sử, trật tự xã hội, thế lực, luật vận hành của thế giới. Đây là canon mà các chapter sau phải tuân theo."
+                value={form.world_setting}
+                onChange={(e) => setForm({ ...form, world_setting: e.target.value })}
+                rows={4}
+                maxLength={1200}
+                className="mt-1.5"
+              />
+              <p className="mt-1 text-xs text-muted-foreground">
+                {form.world_setting.length}/1200 ký tự
+              </p>
+            </div>
+            <div>
+              <Label htmlFor="cultivation_system">
+                Cảnh giới tu luyện / hệ thống sức mạnh <span className="text-destructive">*</span>
+              </Label>
+              <Textarea
+                id="cultivation_system"
+                placeholder="VD: Phàm Thể → Luyện Khí → Trúc Cơ → Kim Đan → Nguyên Anh... Kèm logic đột phá, giới hạn và cái giá phải trả."
+                value={form.cultivation_system}
+                onChange={(e) =>
+                  setForm({ ...form, cultivation_system: e.target.value })
+                }
+                rows={4}
+                maxLength={1200}
+                className="mt-1.5"
+              />
+              <p className="mt-1 text-xs text-muted-foreground">
+                {form.cultivation_system.length}/1200 ký tự
+              </p>
+            </div>
+            <div>
+              <Label htmlFor="ending_goal">
+                Kết thúc mục tiêu <span className="text-destructive">*</span>
+              </Label>
+              <Textarea
+                id="ending_goal"
+                placeholder="Mô tả đích đến lớn của truyện: main phải đạt điều gì, trả giá gì, và khi nào truyện nên khép lại."
+                value={form.ending_goal}
+                onChange={(e) => setForm({ ...form, ending_goal: e.target.value })}
+                rows={3}
+                maxLength={800}
+                className="mt-1.5"
+              />
+              <p className="mt-1 text-xs text-muted-foreground">
+                {form.ending_goal.length}/800 ký tự
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
             <CardTitle className="text-base">👤 Nhân vật chính</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -246,6 +340,85 @@ function SetupForm() {
               />
               <p className="mt-1 text-xs text-muted-foreground">
                 {form.character_description.length}/500 ký tự
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">🤝 Đồng hành</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <Label htmlFor="companion_name">
+                Tên đồng hành <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="companion_name"
+                placeholder="VD: Tô Vãn, Bạch Hồ, A Kỳ..."
+                value={form.companion_name}
+                onChange={(e) => setForm({ ...form, companion_name: e.target.value })}
+                maxLength={50}
+                className="mt-1.5"
+              />
+            </div>
+            <div>
+              <Label htmlFor="companion_role">Vai trò</Label>
+              <Input
+                id="companion_role"
+                placeholder="VD: Sư tỷ bị lưu đày, kiếm linh cổ xưa, thích khách thuê bất đắc dĩ..."
+                value={form.companion_role}
+                onChange={(e) => setForm({ ...form, companion_role: e.target.value })}
+                maxLength={120}
+                className="mt-1.5"
+              />
+            </div>
+            <div>
+              <Label htmlFor="companion_description">Mô tả đồng hành</Label>
+              <Textarea
+                id="companion_description"
+                placeholder="Miêu tả ngoại hình, tính cách, cách suy nghĩ, sở trường và điểm dễ mâu thuẫn với main."
+                value={form.companion_description}
+                onChange={(e) =>
+                  setForm({ ...form, companion_description: e.target.value })
+                }
+                rows={3}
+                maxLength={600}
+                className="mt-1.5"
+              />
+              <p className="mt-1 text-xs text-muted-foreground">
+                {form.companion_description.length}/600 ký tự
+              </p>
+            </div>
+            <div>
+              <Label htmlFor="companion_goal">Mục tiêu riêng</Label>
+              <Textarea
+                id="companion_goal"
+                placeholder="Điều đồng hành thật sự theo đuổi ngoài việc đi cùng main."
+                value={form.companion_goal}
+                onChange={(e) => setForm({ ...form, companion_goal: e.target.value })}
+                rows={2}
+                maxLength={400}
+                className="mt-1.5"
+              />
+              <p className="mt-1 text-xs text-muted-foreground">
+                {form.companion_goal.length}/400 ký tự
+              </p>
+            </div>
+            <div>
+              <Label htmlFor="companion_arc">Quãng đường đồng hành</Label>
+              <Textarea
+                id="companion_arc"
+                placeholder="Nêu rõ họ đi cùng main một chặng hay cả hành trình, và điều gì có thể khiến họ rời đi hoặc ở lại."
+                value={form.companion_arc}
+                onChange={(e) => setForm({ ...form, companion_arc: e.target.value })}
+                rows={2}
+                maxLength={400}
+                className="mt-1.5"
+              />
+              <p className="mt-1 text-xs text-muted-foreground">
+                {form.companion_arc.length}/400 ký tự
               </p>
             </div>
           </CardContent>

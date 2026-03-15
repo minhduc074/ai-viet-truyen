@@ -19,8 +19,17 @@ export interface Story {
   title: string;
   genre: string;
   premise: string | null;
+  world_setting: string | null;
+  cultivation_system: string | null;
+  ending_goal: string | null;
   character_name: string | null;
   character_description: string | null;
+  companion_name: string | null;
+  companion_role: string | null;
+  companion_description: string | null;
+  companion_goal: string | null;
+  companion_arc: string | null;
+  current_power_level: string | null;
   tone: StoryTone;
   chapter_length: ChapterLength;
   ai_model: string | null;
@@ -66,8 +75,16 @@ export interface AIStoryResponse {
 export interface AIRandomSetupResponse {
   title: string;
   premise: string;
+  world_setting: string;
+  cultivation_system: string;
+  ending_goal: string;
   character_name: string;
   character_description: string;
+  companion_name: string;
+  companion_role: string;
+  companion_description: string;
+  companion_goal: string;
+  companion_arc: string;
 }
 
 // ===== Story Setup Form =====
@@ -75,8 +92,16 @@ export interface StorySetup {
   title: string;
   genre: string;
   premise: string;
+  world_setting: string;
+  cultivation_system: string;
+  ending_goal: string;
   character_name: string;
   character_description: string;
+  companion_name: string;
+  companion_role: string;
+  companion_description: string;
+  companion_goal: string;
+  companion_arc: string;
   tone: StoryTone;
   chapter_length: ChapterLength;
   ai_model: string;
